@@ -1,2 +1,2 @@
 # Oath
-OatH: OpenStack at Home
+OatH: OpenStack at Home. No relation to Oath:.
