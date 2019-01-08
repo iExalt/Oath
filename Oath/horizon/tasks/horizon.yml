@@ -1,0 +1,35 @@
+- name:              Update apt
+  apt:
+    update_cache:    yes
+    upgrade:         yes
+    force_apt_get:   yes
+
+- name:              Install Horizon
+  apt:
+    name:            "{{ packages }}"
+    force_apt_get:   yes
+  vars:
+    packages:
+      - openstack-dashboard
+      - memcached
+
+- name:              Check if horizon original config backup exists
+  stat:
+    path:            /etc/openstack-dashboard/local_settings.py.bak
+  register:          horizon_original_config
+
+- name:              Create backup of horizon config
+  shell:             mv /etc/openstack-dashboard/local_settings.py /etc/openstack-dashboard/local_settings.py.bak
+  when:              horizon_original_config.stat.exists == False
+
+- name:              Upload horizon config
+  template:
+    src:             local_settings.py.j2
+    dest:            /etc/openstack-dashboard/local_settings.py
+
+- name:              Restart apache2
+  service:
+    name:            "{{ item }}"
+    state:           restarted
+  loop:
+  - apache2

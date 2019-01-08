@@ -1,0 +1,3 @@
+---
+# tasks file for nova
+- include_tasks: nova.yml

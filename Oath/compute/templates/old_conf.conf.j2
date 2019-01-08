@@ -1,0 +1,42 @@
+#-------------------------------------------------------------------------------
+
+#[DEFAULT]
+#transport_url = rabbit://{{ rabbitmq_user }}:{{ rabbitmq_pass }}@{{ rabbitmq_host }}:5672
+#my_ip = {{ groups["nova_group"][0] }}
+##use_neutron = true
+##firewall_driver = nova.virt.firewall.NoopFirewallDriver
+
+#[vnc]
+#enabled = true
+#server_listen = 0.0.0.0
+#server_proxyclient_address = $my_ip
+#novncproxy_base_url = http://{{ groups["nova_group"][0]}}:6080/vnc_auto.html
+
+#[glance]
+#api_servers = http://{{ groups["glance_group"][0] }}:9292
+
+#[oslo_concurrency]
+#lock_path = /var/lib/nova/tmp
+
+#[placement]
+#auth_url = http://{{ groups["keystone_group"][0] }}:5000/v3
+#region_name = RegionOne
+#auth_type = password
+#project_domain_name = Default
+#user_domain_name = Default
+#project_name = service
+#username = placement
+#password = {{ placement_pass }}
+
+#[api]
+#auth_strategy = keystone
+
+#[keystone_authtoken]
+#auth_url = http://{{ groups["keystone_group"][0] }}:5000/v3
+##memcached_servers = controller:11211
+#auth_type = password
+#project_domain_name = Default
+#user_domain_name = Default
+#project_name = service
+#username = nova
+#password = {{ nova_pass }}

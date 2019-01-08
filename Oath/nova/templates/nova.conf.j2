@@ -1,0 +1,73 @@
+[api_database]
+connection = mysql+pymysql://nova:{{ nova_db_pass }}@{{ groups["keystone_group"][0] }}/nova_api
+
+[database]
+connection = mysql+pymysql://nova:{{ nova_db_pass }}@{{ groups["keystone_group"][0] }}/nova
+
+[placement_database]
+connection = mysql+pymysql://placement:{{ placement_db_pass }}@{{ groups["keystone_group"][0] }}/placement
+
+[DEFAULT]
+transport_url = rabbit://{{ rabbitmq_user }}:{{ rabbitmq_pass }}@{{ rabbitmq_host }}:5672
+my_ip = {{ groups["nova_group"][0] }}
+use_neutron = true
+firewall_driver = nova.virt.firewall.NoopFirewallDriver
+
+[cells]
+enable = False
+
+[vnc]
+enabled = true
+server_listen = $my_ip
+server_proxyclient_address = $my_ip
+
+[scheduler]
+discover_hosts_in_cells_interval = 300
+
+[glance]
+api_servers = http://{{ groups["glance_group"][0] }}:9292
+
+[oslo_concurrency]
+lock_path = /var/lib/nova/tmp
+
+[placement]
+www_authenticate_uri = http://{{ groups["keystone_group"][0] }}:5000/v3
+auth_url = http://{{ groups["keystone_group"][0] }}:5000/v3
+#region_name = RegionOne
+os_region_name = openstack
+auth_type = password
+project_domain_name = Default
+user_domain_name = Default
+project_name = service
+username = placement
+password = {{ placement_pass }}
+service_token_roles_required = True
+
+
+[api]
+auth_strategy = keystone
+
+[keystone_authtoken]
+www_authenticate_uri = http://{{ groups["keystone_group"][0] }}:5000/v3
+auth_url = http://{{ groups["keystone_group"][0] }}:5000/v3
+#memcached_servers = controller:11211
+region_name = RegionOne
+auth_type = password
+project_domain_name = Default
+user_domain_name = Default
+project_name = service
+username = nova
+password = {{ nova_pass }}
+
+[neutron]
+url = http://{{ groups["keystone_group"][0] }}:9696
+auth_url = http://{{ groups["keystone_group"][0] }}:5000
+auth_type = password
+project_domain_name = default
+user_domain_name = default
+region_name = RegionOne
+project_name = service
+username = neutron
+password = {{ neutron_pass }}
+service_metadata_proxy = true
+metadata_proxy_shared_secret = {{ metadata_shared_secret }}

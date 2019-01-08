@@ -1,0 +1,1 @@
+ansible-playbook run_oath.yml -e "keystone_host= glance_host= nova_host= compute_host= neutron_host= horizon_host=" --skip-tags=""

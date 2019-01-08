@@ -1,0 +1,3 @@
+---
+# tasks file for include_hosts
+- include_tasks: include.yml

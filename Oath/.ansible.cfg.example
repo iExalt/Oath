@@ -1,0 +1,5 @@
+[defaults]
+log_path = ansible.log
+stdout_callback = debug
+ssh_args = -o PubKeyAuthentication=no -o StrictHostKeyChecking=no
+ansible_python_interpreter = /usr/bin/python3

@@ -1,0 +1,3 @@
+---
+# tasks file for keystone
+- include_tasks: keystone.yml

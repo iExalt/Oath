@@ -1,0 +1,3 @@
+---
+# tasks file for openstack_essentials
+- include_tasks: openstack_essentials.yml

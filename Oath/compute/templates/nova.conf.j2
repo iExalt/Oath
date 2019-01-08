@@ -1,0 +1,53 @@
+[DEFAULT]
+#log_dir = /var/log/nova
+lock_path = /var/lock/nova
+state_path = /var/lib/nova
+transport_url = rabbit://{{ rabbitmq_user }}:{{ rabbitmq_pass }}@{{ groups["nova_group"][0]}}:5672
+
+
+[api_database]
+connection = sqlite:////var/lib/nova/nova_api.sqlite
+
+[cells]
+enable = False
+
+[database]
+connection = sqlite:////var/lib/nova/nova.sqlite
+
+[glance]
+
+[keystone_authtoken]
+auth_url = http://{{ groups["keystone_group"][0]}}:5000/v3
+region_name = RegionOne
+auth_type = password
+project_domain_name = Default
+user_domain_name = Default
+project_name = service
+username = nova
+password = {{ nova_pass }}
+
+[libvirt]
+
+[oslo_concurrency]
+lock_path = /var/lib/nova/tmp
+
+[placement]
+auth_url = http://{{ groups["keystone_group"][0]}}:5000/v3
+region_name = RegionOne
+auth_type = password
+project_domain_name = Default
+user_domain_name = Default
+project_name = service
+username = placement
+password = {{ placement_pass }}
+
+[neutron]
+url = http://{{ groups["keystone_group"][0] }}:9696
+auth_url = http://{{ groups["keystone_group"][0] }}:5000
+auth_type = password
+project_domain_name = default
+user_domain_name = default
+region_name = RegionOne
+project_name = service
+username = neutron
+password = {{ neutron_pass }}

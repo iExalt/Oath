@@ -1,0 +1,75 @@
+- name:                  Update apt
+  apt:
+    update_cache:        yes
+    upgrade:             yes
+    force_apt_get:       yes
+
+- name:                  Glance DB setup
+  shell:                 |
+    mysql --user={{ db_user }} --password={{ db_pass }} -h {{ groups["keystone_group"][0] }} -e "
+    CREATE DATABASE IF NOT EXISTS glance DEFAULT CHARSET=utf8;
+    GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'localhost'
+    IDENTIFIED BY '{{ glance_db_pass }}';
+    GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'%'
+    IDENTIFIED BY '{{ glance_db_pass }}';
+    "
+  ignore_errors:         yes
+
+- name:                  Install Glance
+  apt:
+    name:                "{{ packages }}"
+    force_apt_get:       yes
+  vars:
+    packages:
+      - glance
+
+- name:                  Check if glance original config backup exists
+  stat:
+    path:                /etc/glance/glance-api.conf.bak
+  register:              glance_original_config
+
+- name:                  Create backup of glance config
+  shell:                 mv /etc/glance/glance-api.conf /etc/glance/glance-api.conf.bak
+  when:                  glance_original_config.stat.exists == False
+
+- name:                  Upload glance-api config
+  template:
+    src:                 glance-api.conf.j2
+    dest:                /etc/glance/glance-api.conf
+
+- name:                  Populate Identity service database
+  shell:                 glance-manage db_sync
+  become:                yes
+  become_user:           root
+  become_method:         sudo
+
+- name:                  Restart Image api
+  service:
+    name:                glance-api
+    state:               restarted
+
+# - name:                Restart Image registry
+#   service:
+#     name:              glance-registry
+#     state:             restarted
+
+- name: Get Cirros
+  get_url:
+    url: http://download.cirros-cloud.net/0.4.0/cirros-0.4.0-x86_64-disk.img
+    dest: /root
+    mode: 0644
+
+- name:                  Create service, endpoint, user and role
+  shell:                 |
+    openstack --os-username=admin --os-password=Test1234! --os-project-name=admin \
+    --os-user-domain-name=Default --os-project-domain-name=Default \
+    --os-auth-url=http://{{ groups["keystone_group"][0] }}:5000/v3 --os-identity-api-version=3 \
+    {{ item }}
+  loop:
+    - user create --domain default --password {{ glance_pass }} glance
+    - role add --project service --user glance admin
+    - service create --name glance --description "OpenStack Image" image
+    - endpoint create --region RegionOne image public http://{{ groups["glance_group"][0] }}:9292
+    - endpoint create --region RegionOne image internal http://{{ groups["glance_group"][0] }}:9292
+    - endpoint create --region RegionOne image admin http://{{ groups["glance_group"][0] }}:9292
+    - image create "cirros" --file cirros-0.4.0-x86_64-disk.img --disk-format qcow2 --container-format bare --public

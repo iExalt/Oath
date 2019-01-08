@@ -1,0 +1,30 @@
+- name:             Add openstack repository
+  shell:            add-apt-repository -y cloud-archive:rocky
+
+- name:             Update apt
+  apt:
+    update_cache:   yes
+    upgrade:        yes
+    force_apt_get:  yes
+
+- name:             Install packages
+  apt:
+    name:           "{{ packages }}"
+    force_apt_get:  yes
+  vars:
+    packages:
+      - software-properties-common
+      - python3.6-dev
+      - python2.7-dev
+      - python3-pip
+      - python-pip
+      - mariadb-client
+      - mosh
+      - lsb-release
+      - wget
+
+- name:             Install OpenStack client
+  apt:
+    name:           python3-openstackclient
+    state:          present
+    force_apt_get:  yes

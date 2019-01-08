@@ -1,0 +1,3 @@
+---
+# tasks file for compute
+- include_tasks: compute.yml

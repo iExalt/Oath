@@ -1,0 +1,142 @@
+[DEFAULT]
+#log_dir = /var/log/nova
+lock_path = /var/lock/nova
+state_path = /var/lib/nova
+transport_url = rabbit://{{ rabbitmq_user }}:{{ rabbitmq_pass }}@{{ groups["nova_group"][0]}}:5672
+
+[api]
+[api_database]
+connection = sqlite:////var/lib/nova/nova_api.sqlite
+[barbican]
+
+[cache]
+
+[cells]
+enable = False
+
+[cinder]
+
+[compute]
+
+[conductor]
+
+[console]
+
+[consoleauth]
+
+[cors]
+
+[database]
+connection = sqlite:////var/lib/nova/nova.sqlite
+
+[devices]
+
+[ephemeral_storage_encryption]
+
+[filter_scheduler]
+
+[glance]
+
+[guestfs]
+
+[healthcheck]
+
+[hyperv]
+
+[ironic]
+
+[key_manager]
+
+[keystone]
+
+[keystone_authtoken]
+auth_url = http://{{ groups["keystone_group"][0]}}:5000/v3
+auth_type = password
+project_domain_name = Default
+user_domain_name = Default
+project_name = service
+username = nova
+password = {{ nova_pass }}
+
+[libvirt]
+
+[matchmaker_redis]
+
+[metrics]
+
+[mks]
+
+[neutron]
+
+[notifications]
+
+[osapi_v21]
+
+[oslo_concurrency]
+lock_path = /var/lib/nova/tmp
+
+[oslo_messaging_amqp]
+
+[oslo_messaging_kafka]
+
+[oslo_messaging_notifications]
+
+[oslo_messaging_rabbit]
+
+[oslo_messaging_zmq]
+
+[oslo_middleware]
+
+[oslo_policy]
+
+[pci]
+
+[placement]
+auth_url = http://{{ groups["keystone_group"][0]}}:5000/v3
+region_name = RegionOne
+auth_type = password
+project_domain_name = Default
+user_domain_name = Default
+project_name = service
+username = placement
+password = {{ placement_pass }}
+
+[placement_database]
+
+[powervm]
+
+[profiler]
+
+[quota]
+
+[rdp]
+
+[remote_debug]
+
+[scheduler]
+
+[serial_console]
+
+[service_user]
+
+[spice]
+
+[upgrade_levels]
+
+[vault]
+
+[vendordata_dynamic_auth]
+
+[vmware]
+
+[vnc]
+
+[workarounds]
+
+[wsgi]
+
+[xenserver]
+
+[xvp]
+
+[zvm]

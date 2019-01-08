@@ -1,0 +1,48 @@
+- name:                          Add all given hosts to "all_hosts" group
+  add_host:
+    host:                        "{{ item }}"
+    groups:
+      - all_hosts_group
+    ansible_python_interpreter:  /usr/bin/python3
+  loop:
+    - "{{ keystone_host }}"
+    - "{{ glance_host }}"
+    - "{{ nova_host }}"
+    - "{{ compute_host }}"
+    - "{{ neutron_host }}"
+    - "{{ horizon_host }}"
+
+- name:                          Add hosts to groups
+  add_host:
+    host:                        "{{ item.hostname }}"
+    groups:
+      - "{{ item.group }}_group"
+    ansible_python_interpreter:  /usr/bin/python3
+  loop:
+    - hostname:                  "{{ keystone_host }}"
+      group:                     keystone
+    - hostname:                  "{{ glance_host }}"
+      group:                     glance
+    - hostname:                  "{{ nova_host }}"
+      group:                     nova
+    - hostname:                  "{{ compute_host }}"
+      group:                     compute
+    - hostname:                  "{{ neutron_host }}"
+      group:                     neutron
+    - hostname:                  "{{ horizon_host }}"
+      group:                     horizon
+
+
+
+
+- name:                          Print hosts
+  debug:
+    var:                         "{{ item }}"
+  loop:
+    - groups["all_hosts_group"]
+    - groups["keystone_group"]
+    - groups["glance_group"]
+    - groups["nova_group"]
+    - groups["compute_group"]
+    - groups["neutron_group"]
+    - groups["horizon_group"]

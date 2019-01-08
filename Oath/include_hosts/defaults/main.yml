@@ -1,0 +1,4 @@
+---
+# defaults file for include_hosts
+keystone_host: 0.42.42.42
+glance_host: 0.3.3.3

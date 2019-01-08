@@ -1,0 +1,106 @@
+- name:                  Update apt
+  apt:
+    update_cache:        yes
+    upgrade:             yes
+    force_apt_get:       yes
+
+- name:                  Install MariaDB
+  apt:
+    name:                mariadb-server-10.1
+    state:               present
+    force_apt_get:       yes
+
+- name:                  Bind MariaDB to 0.0.0.0
+  replace:
+    path:                /etc/mysql/mariadb.conf.d/50-server.cnf
+    regexp:              '127.0.0.1'
+    replace:             '0.0.0.0'
+
+- name:                  Restart MariaDB Service
+  service:
+    name:                mysql
+    state:               restarted
+
+- name:                  MariaDB setup
+  shell:                 |
+    mysql -u root -e "
+    GRANT ALL PRIVILEGES ON *.* TO 'db_admin'@'localhost' IDENTIFIED BY
+    'lessl0lcaking' WITH GRANT OPTION;
+    GRANT ALL PRIVILEGES ON *.* TO 'db_admin'@'%' IDENTIFIED BY
+    'lessl0lcaking' WITH GRANT OPTION;"
+  ignore_errors:         yes
+
+- name:                  Keystone DB setup
+  shell:                 |
+    mysql -u root -e "CREATE DATABASE IF NOT EXISTS keystone DEFAULT CHARSET=utf8;
+    GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost'
+    IDENTIFIED BY '{{ keystone_db_pass }}';
+    GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%'
+    IDENTIFIED BY '{{ keystone_db_pass }}';"
+  ignore_errors:         yes
+
+- name:                  Install Keystone and Apache
+  apt:
+    name:                "{{ packages }}"
+    force_apt_get:       yes
+  vars:
+    packages:
+      - keystone
+      - apache2
+      - libapache2-mod-wsgi
+
+- name:                  Edit Keystone connection
+  replace:
+    path:                /etc/keystone/keystone.conf
+    regexp:              '^connection =.*$'
+    replace:             'connection = mysql+pymysql://keystone:{{ keystone_db_pass }}@localhost/keystone'
+
+- name:                  Edit Keystone drivers
+  replace:
+    path:                /etc/keystone/keystone.conf
+    regexp:              '#provider = fernet'
+    replace:             'provider = fernet'
+
+- name:                  Populate Identity service database
+  shell:                 keystone-manage db_sync
+  become:                yes
+  become_user:           root
+  become_method:         sudo
+
+- name:                  Initialize Fernet key repositories
+  shell:                 |
+    keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
+    keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
+
+- name:                  Bootstrap Identity service
+  shell:                 |
+    keystone-manage bootstrap --bootstrap-password {{ bootstrap_pass }} \
+    --bootstrap-admin-url http://{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}:5000/v3/ \
+    --bootstrap-internal-url http://{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}:5000/v3/ \
+    --bootstrap-public-url http://{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}:5000/v3/ \
+    --bootstrap-region-id RegionOne \
+
+- name:                  Add apache hostname
+  lineinfile:
+    path:                /etc/apache2/apache2.conf
+    line:                ServerName localhost
+
+- name:                  Restart apache2 service
+  service:
+    name:                apache2
+    enabled:             yes
+    state:               restarted
+
+- name:                  Create domain, project, user and role
+  shell:                 |
+    openstack --os-username=admin --os-password=Test1234! --os-project-name=admin \
+    --os-user-domain-name=Default --os-project-domain-name=Default \
+    --os-auth-url=http://{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}:5000/v3 --os-identity-api-version=3 \
+    {{ item }}
+  loop:
+    - domain create --description "An Example Domain" example
+    - project create --domain default --description "Service Project" service
+    - project create --domain default --description "Demo Project" myproject
+    - user create --domain default --password Test1234! myuser
+    - role create myrole
+    - role add --project myproject --user myuser myrole

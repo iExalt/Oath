@@ -1,0 +1,64 @@
+- hosts: 127.0.0.1
+  connection: local
+  gather_facts: no
+
+  roles:
+  - include_hosts
+  tags:
+    - always
+
+- hosts: all_hosts_group
+  remote_user: root
+  connection: ssh
+  tags:
+    - openstack_essentials
+  roles:
+    - openstack_essentials
+
+- hosts: keystone_group
+  remote_user: root
+  connection: ssh
+  tags:
+    - keystone
+  roles:
+    - keystone
+
+- hosts: glance_group
+  remote_user: root
+  connection: ssh
+  tags:
+    - glance
+  roles:
+    - glance
+
+- hosts: neutron_group
+  remote_user: root
+  connection: ssh
+  tags:
+    - neutron
+  roles:
+    - neutron
+
+- hosts: nova_group
+  remote_user: root
+  connection: ssh
+  tags:
+    - nova
+  roles:
+    - nova
+
+- hosts: compute_group
+  remote_user: root
+  connection: ssh
+  tags:
+    - compute
+  roles:
+    - compute
+
+- hosts: horizon_group
+  remote_user: root
+  connection: ssh
+  tags:
+    - horizon
+  roles:
+    - horizon

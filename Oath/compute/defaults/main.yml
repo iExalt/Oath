@@ -1,0 +1,12 @@
+---
+# defaults file for compute
+db_user:           db_admin
+db_pass:           lessl0lcaking
+nova_db_pass:      nova_pass
+placement_db_pass: placement_pass
+nova_pass:         Test1234!
+placement_pass:    Test1234!
+neutron_pass:      Test1234!
+rabbitmq_user:     openstack
+rabbitmq_pass:     Test1234!
+rabbitmq_host:     localhost

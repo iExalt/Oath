@@ -1,0 +1,11 @@
+---
+# defaults file for neutron
+db_user: db_admin
+db_pass: lessl0lcaking
+neutron_db_pass: neutron_pass
+neutron_pass: Test1234!
+nova_pass: Test1234!
+rabbitmq_user: openstack
+rabbitmq_pass: Test1234!
+rabbitmq_host: localhost
+metadata_shared_secret: s3cretvAlue

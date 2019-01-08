@@ -1,0 +1,58 @@
+[DEFAULT]
+core_plugin = ml2
+auth_strategy = keystone
+service_plugins = router
+allow_overlapping_ips = true
+notify_nova_on_port_status_changes = true
+notify_nova_on_port_data_changes = true
+transport_url = rabbit://{{ rabbitmq_user }}:{{ rabbitmq_pass }}@{{ groups["nova_group"][0]}}:5672
+
+[agent]
+root_helper = "sudo /usr/bin/neutron-rootwrap /etc/neutron/rootwrap.conf"
+
+[cors]
+
+[database]
+connection = mysql+pymysql://neutron:neutron_pass@{{ groups["keystone_group"][0]}}/neutron
+
+[keystone_authtoken]
+auth_url = http://{{ groups["keystone_group"][0]}}:5000/v3
+region_name = RegionOne
+auth_type = password
+project_domain_name = Default
+user_domain_name = Default
+project_name = service
+username = neutron
+password = {{ neutron_pass }}
+
+[matchmaker_redis]
+
+[nova]
+auth_url = http://{{ groups["keystone_group"][0]}}:5000/v3
+region_name = RegionOne
+auth_type = password
+project_domain_name = Default
+user_domain_name = Default
+project_name = service
+username = nova
+password = {{ nova_pass }}
+
+[oslo_concurrency]
+
+[oslo_messaging_amqp]
+
+[oslo_messaging_kafka]
+
+[oslo_messaging_notifications]
+
+[oslo_messaging_rabbit]
+
+[oslo_messaging_zmq]
+
+[oslo_middleware]
+
+[oslo_policy]
+
+[quotas]
+
+[ssl]

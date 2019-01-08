@@ -1,0 +1,6 @@
+---
+# defaults file for glance
+db_user: db_admin
+db_pass: lessl0lcaking
+glance_db_pass: glance_pass
+glance_pass: Test1234!

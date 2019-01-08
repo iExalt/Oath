@@ -1,0 +1,92 @@
+- name:             Update apt
+  apt:
+    update_cache:   yes
+    upgrade:        yes
+    force_apt_get:  yes
+
+- name:             Neutron DB setup
+  shell:            |
+    mysql --user={{ db_user }} --password={{ db_pass }} -h {{ groups["keystone_group"][0] }} -e "
+    CREATE DATABASE IF NOT EXISTS neutron DEFAULT CHARSET=utf8;
+    GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'localhost'
+    IDENTIFIED BY '{{ neutron_db_pass }}';
+    GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'%'
+    IDENTIFIED BY '{{ neutron_db_pass }}';
+    "
+
+- name:             Install Neutron
+  apt:
+    name:           "{{ packages }}"
+    force_apt_get:  yes
+  vars:
+    packages:
+      - neutron-server
+      - neutron-plugin-ml2
+      - neutron-linuxbridge-agent
+      - neutron-l3-agent
+      - neutron-dhcp-agent
+      - neutron-metadata-agent
+
+- name:              Check if neutron original config backup exists
+  stat:
+    path:            /etc/neutron/neutron.conf.bak
+  register:          neutron_original_config
+
+- name:              Create backup of neutron config
+  shell:             mv /etc/neutron/neutron.conf /etc/neutron/neutron.conf.bak
+  when:              neutron_original_config.stat.exists == False
+
+- name:              Upload neutron config
+  template:
+    src:             neutron.conf.j2
+    dest:            /etc/neutron/neutron.conf
+
+- name:              Upload ml2 config
+  template:
+    src:             ml2_conf.ini
+    dest:            /etc/neutron/plugins/ml2/ml2_conf.ini
+
+- name:              Upload linuxbridge config
+  template:
+    src:             linuxbridge_agent.ini
+    dest:            /etc/neutron/plugins/ml2/linuxbridge_agent.ini
+
+- name:              Upload l3 agent config
+  template:
+    src:             l3_agent.ini
+    dest:            /etc/neutron/l3_agent.ini
+
+- name:              Upload DHCP agent config
+  template:
+    src:             dhcp_agent.ini
+    dest:            /etc/neutron/dhcp_agent.ini
+
+- name: Populate database
+  shell: |
+    neutron-db-manage --config-file /etc/neutron/neutron.conf \
+    --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade head
+
+- name:           Create endpoint, user and role
+  shell:          |
+    openstack --os-username=admin --os-password=Test1234! --os-project-name=admin \
+    --os-user-domain-name=Default --os-project-domain-name=Default \
+    --os-auth-url=http://{{ groups["keystone_group"][0] }}:5000/v3 --os-identity-api-version=3 \
+    {{ item }}
+  loop:
+    - user create --domain default --password {{ neutron_pass }} neutron
+    - role add --project service --user neutron admin
+    - service create --name neutron --description "OpenStack Networking" network
+    - endpoint create --region RegionOne network public http://{{ groups["neutron_group"][0] }}:9696
+    - endpoint create --region RegionOne network internal http://{{ groups["neutron_group"][0] }}:9696
+    - endpoint create --region RegionOne network admin http://{{ groups["neutron_group"][0] }}:9696
+
+- name:              Restart Neutron api
+  service:
+    name:            "{{ item }}"
+    state:           restarted
+  loop:
+  - neutron-server
+  - neutron-linuxbridge-agent
+  - neutron-l3-agent
+  - neutron-dhcp-agent
+  - neutron-metadata-agent

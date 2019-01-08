@@ -1,0 +1,46 @@
+- name:              Update apt
+  apt:
+    update_cache:    yes
+    upgrade:         yes
+    force_apt_get:   yes
+
+- name:              Install Nova compute
+  apt:
+    name:            "{{ packages }}"
+    force_apt_get:   yes
+  vars:
+    - packages:
+        - nova-compute
+        - neutron-linuxbridge-agent
+
+- name:              Check if nova original config backup exists
+  stat:
+    path:            /etc/glance/nova.conf.bak
+  register:          nova_original_config
+
+- name:              Create backup of nova config
+  shell:             mv /etc/nova/nova.conf /etc/nova/nova.conf.bak
+  when:              nova_original_config.stat.exists == False
+
+- name:              Upload nova config
+  template:
+    src:             nova.conf.j2
+    dest:            /etc/nova/nova.conf
+
+- name:              Upload neutron config
+  template:
+    src:             neutron.conf.j2
+    dest:            /etc/neutron/neutron.conf
+
+- name:              Upload linuxbridge config
+  template:
+    src:             linuxbridge_agent.ini
+    dest:            /etc/neutron/plugins/ml2/linuxbridge_agent.ini
+
+- name:              Restart Compute services
+  service:
+    name:            "{{ item }}"
+    state:           restarted
+  loop:
+  - nova-compute
+  - neutron-linuxbridge-agent

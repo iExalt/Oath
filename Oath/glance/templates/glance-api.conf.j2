@@ -1,0 +1,28 @@
+[database]
+connection = mysql+pymysql://glance:{{ glance_db_pass }}@{{ groups["keystone_group"][0] }}/glance
+backend = sqlalchemy
+
+[keystone_authtoken]
+www_authenticate_uri = http://{{ groups["keystone_group"][0] }}:5000/v3
+auth_url = http://{{ groups["keystone_group"][0] }}:5000/v3
+#memcached_servers = controller:11211
+#identity_uri = http://{{ groups["keystone_group"][0] }}:5000/v3
+#admin_user = glance
+#admin_password = Test1234!
+auth_type = password
+project_domain_name = Default
+user_domain_name = Default
+project_name = service
+username = glance
+password = Test1234!
+auth_version = v3
+
+region_name = RegionOne
+
+[glance_store]
+stores = file,http
+default_store = file
+filesystem_store_datadir = /var/lib/glance/images/
+
+[paste_deploy]
+flavor = keystone

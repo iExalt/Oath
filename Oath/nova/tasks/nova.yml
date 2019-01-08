@@ -1,0 +1,148 @@
+- name:              Update apt
+  apt:
+    update_cache:    yes
+    upgrade:         yes
+    force_apt_get:   yes
+
+- name:              Nova DB setup
+  shell:             |
+    mysql --user={{ db_user }} --password={{ db_pass }} -h {{ groups["keystone_group"][0] }} -e "
+    CREATE DATABASE IF NOT EXISTS {{ item.database }} DEFAULT CHARSET=utf8;
+    GRANT ALL PRIVILEGES ON {{ item.database}}.* TO '{{ item.username }}'@'%'
+    IDENTIFIED BY '{{ item.password }}';
+    "
+  ignore_errors:     yes
+  loop:
+    - database:      nova_api
+      username:      nova
+      password:      "{{ nova_db_pass }}"
+
+    - database:      nova
+      username:      nova
+      password:      "{{ nova_db_pass }}"
+
+    - database:      nova_cell0
+      username:      nova
+      password:      "{{ nova_db_pass }}"
+
+    - database:      placement
+      username:      placement
+      password:      "{{ placement_db_pass }}"
+
+- name:              Install Nova
+  apt:
+    name:            "{{ packages }}"
+    force_apt_get:   yes
+  vars:
+    packages:
+      - nova-api
+      - nova-conductor
+      - nova-novncproxy
+      - nova-scheduler
+      - nova-placement-api
+
+- name: Get RabbitMQ GPG key
+  get_url:
+    url: https://github.com/rabbitmq/signing-keys/releases/download/2.0/rabbitmq-release-signing-key.asc
+    dest: /tmp/rabbitmq_key.txt
+    mode: 0644
+
+- name:              Add Erlang/RabbitMQ repositories
+  shell:             |
+    apt-key add /tmp/rabbitmq_key.txt
+    wget https://packages.erlang-solutions.com/erlang-solutions_1.0_all.deb
+    dpkg -i erlang-solutions_1.0_all.deb
+    echo "deb https://dl.bintray.com/rabbitmq/debian $(lsb_release -c | cut -f2) main" \
+    > /etc/apt/sources.list.d/bintray.rabbitmq.list
+    apt-get update
+
+- name:              Install RabbitMQ
+  apt:
+    name:            "{{ packages }}"
+    update_cache:    yes
+    force_apt_get:   yes
+  vars:
+    packages:
+      - rabbitmq-server
+      - erlang
+
+- name:              Start RabbitMQ service
+  service:
+    name:            rabbitmq-server
+    enabled:         yes
+    state:           started
+
+- name:              Add RabbitMQ admin user
+  rabbitmq_user:
+    user:            "{{ rabbitmq_user }}"
+    password:        "{{ rabbitmq_pass }}"
+    vhost:           /
+    configure_priv:  '.*'
+    read_priv:       '.*'
+    write_priv:      '.*'
+    state:           present
+
+- name:              Check if nova original config backup exists
+  stat:
+    path:            /etc/glance/nova.conf.bak
+  register:          nova_original_config
+
+- name:              Create backup of nova config
+  shell:             mv /etc/nova/nova.conf /etc/nova/nova.conf.bak
+  when:              nova_original_config.stat.exists == False
+
+- name:              Upload nova config
+  template:
+    src:             nova.conf.j2
+    dest:            /etc/nova/nova.conf
+
+- name:            Create endpoint, user and role
+  shell:           |
+    openstack --os-username=admin --os-password=Test1234! --os-project-name=admin \
+    --os-user-domain-name=Default --os-project-domain-name=Default \
+    --os-auth-url=http://{{ groups["keystone_group"][0] }}:5000/v3 --os-identity-api-version=3 \
+    {{ item }}
+  loop:
+    - user create --domain default --password {{ nova_pass }} nova
+    - role add --project service --user nova admin
+    - service create --name nova --description "OpenStack Compute" compute
+    - endpoint create --region RegionOne compute public http://{{ groups["nova_group"][0] }}:8774/v2.1
+    - endpoint create --region RegionOne compute internal http://{{ groups["nova_group"][0] }}:8774/v2.1
+    - endpoint create --region RegionOne compute admin http://{{ groups["nova_group"][0] }}:8774/v2.1
+    - user create --domain default --password {{ placement_pass }} placement
+    - role add --project service --user placement admin
+    - service create --name placement --description "Placement API" placement
+    - endpoint create --region RegionOne placement public http://{{ groups["nova_group"][0] }}:8778
+    - endpoint create --region RegionOne placement internal http://{{ groups["nova_group"][0] }}:8778
+    - endpoint create --region RegionOne placement admin http://{{ groups["nova_group"][0] }}:8778
+
+- name:              Populate Identity service database
+  shell:             |
+    nova-manage db sync
+    nova-manage api_db sync
+
+  become:            yes
+  become_user:       root
+  become_method:     sudo
+
+- name:              Nova setup
+  shell:             |
+    nova-manage cell_v2 map_cell0
+    nova-manage cell_v2 create_cell --name=cell1 --verbose
+    nova-manage db sync
+    nova-manage cell_v2 list_cells
+  register:          nova_shell_output
+
+- name:              Verify output
+  debug:
+    var:             nova_shell_output
+
+- name:              Restart Nova api
+  service:
+    name:            "{{ item }}"
+    state:           restarted
+  loop:
+    - nova-api
+    - nova-scheduler
+    - nova-conductor
+    - nova-novncproxy

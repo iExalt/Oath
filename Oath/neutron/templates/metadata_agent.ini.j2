@@ -1,0 +1,5 @@
+[DEFAULT]
+nova_metadata_host = {{ groups["keystone_group"][0]}}
+metadata_proxy_shared_secret = {{ metadata_shared_secret }}
+[agent]
+[cache]
