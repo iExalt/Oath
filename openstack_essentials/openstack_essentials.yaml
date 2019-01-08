@@ -1,0 +1,47 @@
+- hosts:               all
+  gather_facts:        false
+  connection:          ssh
+  become:              yes
+  become_user:         root
+  become_method:       sudo
+
+  tasks:
+
+    - name:            Add openstack repository
+      shell:           add-apt-repository -y cloud-archive:rocky
+
+    - name:            Update apt
+      apt:
+        update_cache:  yes
+        upgrade:       yes
+        force_apt_get: yes
+
+    - name:           Install packages
+      apt:
+        name:          "{{ packages }}"
+        force_apt_get: yes
+      vars:
+        packages:
+          - software-properties-common
+          - python3.6-dev
+          - python2.7-dev
+          - python3-pip
+          - python-pip
+          - mariadb-client
+
+    - name:            Install OpenStack client
+      apt:
+        name:          python3-openstackclient
+        state:         present
+        force_apt_get: yes
+
+
+
+    #   pip:
+    #     name:        python-openstackclient
+    #     state:       present
+    #     executable:  pip
+    #     extra_args:  --user
+    #   become:        yes
+    #   become_user:   cliaw
+    #   become_method: su

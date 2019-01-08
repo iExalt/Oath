@@ -1,0 +1,124 @@
+- hosts: all
+  gather_facts: false
+  connection: ssh
+  become: yes
+  become_user: root
+  become_method: sudo
+  vars_files:
+    - template.yaml
+
+  tasks:
+    - name: Update apt
+      apt:
+        update_cache: yes
+        upgrade: yes
+        force_apt_get: yes
+
+    # - name: Update yum
+    #   yum: name=* state=latest
+    #
+    # - name: Grab ius
+    #   yum: name=http://dl.iuscommunity.org/pub/ius/stable/CentOS/{{ ansible_distribution_major_version }}/{{ ansible_userspace_architecture }}/ius-release-1.0-13.ius.centos{{ ansible_distribution_major_version }}.noarch.rpm
+    #
+    # - name: Add user
+    #   user:
+    #     name: "{{ username }}"
+    #     password: "{{ password }}"
+    #     groups:
+    #       - wheel
+    #     shell: /bin/bash
+    #     state: present
+    #     system: no
+    #
+    # - name: Check if Atom is installed
+    #   yum:
+    #     list: atom
+    #   register: atom_installed
+    #
+    # - name: Get Atom
+    #   get_url:
+    #     url: https://github.com/atom/atom/releases/download/v1.30.0/atom.x86_64.rpm
+    #     dest: /home/{{username}}/atom.x86_64.rpm
+    #     mode: 0744
+    #   when: (atom_installed.results|length==0) or (atom_installed.results[0].yumstate != 'installed')
+    #
+    # - name: Install Atom
+    #   yum: name=/home/{{username}}/atom.x86_64.rpm
+    #   when: (atom_installed.results|length==0) or (atom_installed.results[0].yumstate != 'installed')
+
+    - name: Install tools
+      package: pkg={{item}} state=present
+      with_items:
+        - vim
+        - net-tools
+        - curl
+        # - emacs
+
+    - name: Add X2Go repository
+      apt_repository:
+        repo: ppa:x2go/stable
+        state: present
+
+
+    - name: Install X2Go
+      apt:
+        name: "{{ packages }}"
+        force_apt_get: yes
+      vars:
+        packages:
+        - x2goserver
+        - x2goserver-xsession
+        - plasma-widget-x2go
+        # - x2golxdebindings
+
+    - name: Add user to netdev group
+      user:
+        name: "{{ username }}"
+        append: yes
+        groups:
+          - netdev
+
+    - name: Check if Docker is installed
+      stat:
+        path: /home/{{username}}/get-docker.sh
+      register: docker_installed
+
+    - name: Get Docker
+      get_url:
+        url: https://get.docker.com
+        dest: /home/{{username}}/get-docker.sh
+        mode: 0744
+      when: docker_installed.stat.exists == False
+
+    - name: Install Docker
+      shell: |
+        sh /home/{{username}}/get-docker.sh
+        systemctl enable docker
+        systemctl start docker
+        usermod -aG docker {{username}}
+      when: docker_installed.stat.exists == False
+
+    - name: Check if OpenShiftCLI is installed
+      stat:
+        path: /usr/local/bin/oc
+      register: os_cli_installed
+
+    - name: Get OpenShift CLI
+      get_url:
+        url: https://github.com/openshift/origin/releases/download/v3.10.0/openshift-origin-client-tools-v3.10.0-dd10d17-linux-64bit.tar.gz
+        dest: /home/{{username}}/openshiftcli.tar.gz
+        mode: 0744
+      when: os_cli_installed.stat.exists == False
+
+    - name: Extract
+      shell: |
+        mkdir /home/{{username}}/openshiftcli
+        tar -zxvf /home/{{username}}/openshiftcli.tar.gz -C /home/{{username}}/openshiftcli --strip-components=1
+      args:
+        warn: False
+      when: os_cli_installed.stat.exists == False
+
+    - name: Move OpenShift CLI to bin
+      shell: |
+        mv /home/{{username}}/openshiftcli/oc /usr/local/bin/oc
+      when: os_cli_installed.stat.exists == False

@@ -1,0 +1,113 @@
+- hosts:               all
+  gather_facts:        true
+  connection:          ssh
+  # become:            yes
+  # become_user:       root
+  # become_method:     sudo
+
+  tasks:
+    # - name:          Add MariaDB repository & key
+    #   shell:         |
+    #     apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xF1656F24C74CD1D8 &&
+    #     add-apt-repository 'deb [arch=amd64] http://sfo1.mirrors.digitalocean.com/mariadb/repo/10.3/ubuntu bionic main'
+
+    - name:            Update apt
+      apt:
+        update_cache:  yes
+        upgrade:       yes
+        force_apt_get: yes
+
+    - name:            Install MariaDB
+      apt:
+        name:          mariadb-server-10.1
+        state:         present
+        force_apt_get: yes
+
+    - name:            MariaDB setup
+      shell:           |
+        mysql -u root -e "
+        GRANT ALL PRIVILEGES ON *.* TO 'db_admin'@'localhost' WITH GRANT OPTION
+        IDENTIFIED BY 'lessl0lcaking';
+        GRANT ALL PRIVILEGES ON *.* TO 'db_admin'@'%' WITH GRANT OPTION
+        IDENTIFIED BY 'lessl0lcaking';"
+      ignore_errors:   yes
+
+    - name:            Keystone DB setup
+      shell:           |
+        mysql -u root -e "CREATE DATABASE IF NOT EXISTS keystone DEFAULT CHARSET=utf8;
+        GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost'
+        IDENTIFIED BY 'keystone_db_pass';
+        GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%'
+        IDENTIFIED BY 'keystone_db_pass';"
+      ignore_errors:   yes
+
+    - name:            Install Keystone and Apache
+      apt:
+        name:          "{{ packages }}"
+        force_apt_get: yes
+      vars:
+        packages:
+          - keystone
+          - apache2
+          - libapache2-mod-wsgi
+
+    - name:            Edit Keystone connection
+      replace:
+        path:          /etc/keystone/keystone.conf
+        regexp:        '^connection =.*$'
+        replace:       'connection = mysql+pymysql://keystone:keystone_db_pass@localhost/keystone'
+
+    - name:            Edit Keystone drivers
+      replace:
+        path:          /etc/keystone/keystone.conf
+        regexp:        '#provider = fernet'
+        replace:       'provider = fernet'
+
+    - name:            Populate Identity service database
+      shell:           keystone-manage db_sync
+      become:          yes
+      become_user:     root
+      become_method:   sudo
+
+    - name:            Initialize Fernet key repositories
+      shell:           |
+        keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
+        keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
+
+    - name:            Bootstrap Identity service
+      shell:           |
+        keystone-manage bootstrap --bootstrap-password Test1234! \
+        --bootstrap-admin-url http://{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}:5000/v3/ \
+        --bootstrap-internal-url http://{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}:5000/v3/ \
+        --bootstrap-public-url http://{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}:5000/v3/ \
+        --bootstrap-region-id RegionOne \
+
+    - name:            Add apache hostname
+      lineinfile:
+        path:          /etc/apache2/apache2.conf
+        #line:         ServerName = {{ inventory_hostname.ansible_default_ipv4_address }}
+        line:          ServerName localhost
+
+    - name:            Restart apache2 service
+      service:
+        name:          apache2
+        enabled:       yes
+        state:         restarted
+
+    - name: Testing
+      debug:
+        msg: |
+          keystone-manage bootstrap --bootstrap-password Test1234! \
+          --bootstrap-admin-url http://{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}:5000/v3/ \
+          --bootstrap-internal-url http://{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}:5000/v3/ \
+          --bootstrap-public-url http://{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}:5000/v3/ \
+
+    # - name:          Configure Keystone admin account
+    #   shell:         |
+    #     export OS_USERNAME=admin
+    #     export OS_PASSWORD=Test1234!
+    #     export OS_PROJECT_NAME=admin
+    #     export OS_USER_DOMAIN_NAME=Default
+    #     export OS_PROJECT_DOMAIN_NAME=Default
+    #     export OS_AUTH_URL=http://localhost:5000/v3
+    #     export OS_IDENTITY_API_VERSION=3

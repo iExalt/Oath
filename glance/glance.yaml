@@ -1,0 +1,166 @@
+- hosts:               all
+  gather_facts:        true
+  connection:          ssh
+  # become:            yes
+  # become_user:       root
+  # become_method:     sudo
+
+  tasks:
+    # - name:          Add MariaDB repository & key
+    #   shell:         |
+    #     apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xF1656F24C74CD1D8 &&
+    #     add-apt-repository 'deb [arch=amd64] http://sfo1.mirrors.digitalocean.com/mariadb/repo/10.3/ubuntu bionic main'
+
+    - name:            Update apt
+      apt:
+        update_cache:  yes
+        upgrade:       yes
+        force_apt_get: yes
+
+    # - name:          Install MariaDB
+    #   apt:
+    #     name:        mariadb-server-10.1
+    #     state:       present
+    #     force_apt_get: yes
+
+    - name:            Keystone DB setup
+      shell:           |
+        mysql --user=db_admin --password=lessl0lcaking -h 165.227.41.224 -e "CREATE DATABASE IF NOT EXISTS glance DEFAULT CHARSET=utf8;
+        GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'localhost' \
+        IDENTIFIED BY 'glance_db_pass';
+        GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'%' \
+        IDENTIFIED BY 'glance_db_pass';"
+
+      ignore_errors:   yes
+
+
+    - name:            Install Glance
+      apt:
+        name:          "{{ packages }}"
+        force_apt_get: yes
+      vars:
+        packages:
+          - glance
+
+    - name:            Edit Glance DB connection
+      replace:
+        path:          /etc/glance/glance-api.conf
+        regexp:        '^connection =.*$'
+        replace:       'connection = mysql+pymysql://glance:glance_db_pass@165.227.41.224/glance'
+
+    - name:            Edit Glance Keystone access
+      replace:
+        path:          /etc/glance/glance-api.conf
+        # regexp:      '#provider = fernet'
+        # replace:     'provider = fernet'
+        regexp:        "{{ item.expr }}"
+        replace:       "{{ item.repl }}"
+
+      with_items:
+        -
+          expr:        '#www_authenticate_uri.*$'
+          repl:        'www_authenticate_uri = http://165.227.41.224:5000'
+        -
+          expr:        '#auth_url.*$'
+          repl:        'auth_url = http://165.227.41.224:5000'
+        -
+          expr:        '#memcached_servers.*$'
+          repl:        'memcached_servers = 165.227.41.224:11211'
+        -
+          expr:        '#auth_type.*$'
+          repl:        'auth_type = http://165.227.41.224:5000'
+        -
+          expr:        '#project_domain_name.*$'
+          repl:        'project_domain_name = Default'
+        -
+          expr:        '#user_domain_name.*$'
+          repl:        'user_domain_name = Default'
+        -
+          expr:        '#project_name.*$'
+          repl:        'project_name = service'
+        -
+          expr:        '#username.*$'
+          repl:        'username = glance'
+        -
+          expr:        '#password.*$'
+          repl:        'password = glance_pass'
+        -
+          expr:        '#flavor.*$'
+          repl:        'flavor = keystone'
+        -
+          expr:        '#stores.*$'
+          repl:        'stores = file,http'
+        -
+          expr:        '#default_store.*$'
+          repl:        'default_store = file'
+        -
+          expr:        '#filesystem_store_datadir.*$'
+          repl:        'filesystem_store_datadir = /var/lib/glance/images/'
+
+    - name:            Edit Glance connection
+      replace:
+        path:          /etc/glance/glance-registry.conf
+        regexp:        '^connection =.*$'
+        replace:       'connection = mysql+pymysql://glance:glance_db_pass@165.227.41.224/glance'
+
+    - name:            Edit Glance Keystone access
+      replace:
+        path:          /etc/glance/glance-registry.conf
+        # regexp:      '#provider = fernet'
+        # replace:     'provider = fernet'
+        regexp:        "{{ item.expr }}"
+        replace:       "{{ item.repl }}"
+
+      with_items:
+        -
+          expr:        '#www_authenticate_uri.*$'
+          repl:        'www_authenticate_uri = http://165.227.41.224:5000'
+        -
+          expr:        '#auth_url.*$'
+          repl:        'auth_url = http://165.227.41.224:5000'
+        -
+          expr:        '#memcached_servers.*$'
+          repl:        'memcached_servers = 165.227.41.224:11211'
+        -
+          expr:        '#auth_type.*$'
+          repl:        'auth_type = http://165.227.41.224:5000'
+        -
+          expr:        '#project_domain_name.*$'
+          repl:        'project_domain_name = Default'
+        -
+          expr:        '#user_domain_name.*$'
+          repl:        'user_domain_name = Default'
+        -
+          expr:        '#project_name.*$'
+          repl:        'project_name = service'
+        -
+          expr:        '#username.*$'
+          repl:        'username = glance'
+        -
+          expr:        '#password.*$'
+          repl:        'password = glance_pass'
+        -
+          expr:        '#flavor.*$'
+          repl:        'flavor = keystone'
+
+    - name:          Populate Identity service database
+      shell:         glance-manage db_sync
+      become:        yes
+      become_user:   root
+      become_method: sudo
+
+    # - name:          Restart Image registry
+    #   service:
+    #     name:        glance-registry
+    #     status:      restarted
+
+    - name:          Restart Image api
+      service:
+        name:        glance-api
+        state:      restarted
+
+    # - name:          Populate Identity service database
+    #   shell:         keystone-manage db_sync
+    #   become:        yes
+    #   become_user:   root
+    #   become_method: sudo

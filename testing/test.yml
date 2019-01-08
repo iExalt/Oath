@@ -1,0 +1,40 @@
+- hosts: 127.0.0.1
+  connection: local
+  vars:
+    - test1: "{{ '[Unit]
+Description=Start TightVNC server at startup
+After=syslog.target network.target
+
+[Service]
+Type=forking
+User=<USER>
+Group=<USER>
+WorkingDirectory=/home/<USER>
+
+PIDFile=/home/<USER>/.vnc/%H:%i.pid
+ExecStartPre=-/usr/bin/vncserver -kill :%i > /dev/null 2>&1
+ExecStart=/usr/bin/vncserver -depth 32 -geometry 1920x1080 :%i
+ExecStop=/usr/bin/vncserver -kill :%i
+
+[Install]
+WantedBy=multi-user.target
+' | regex_replace('<USER>', 'memes') }}"
+  tasks:
+
+
+    # - debug: var=test{{ item }}
+    #   with_sequence: count=1
+
+    - debug:
+        var: hostvars[inventory_hostname]['ansible_default_ipv4']['address']
+
+    - debug:
+        msg: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}"
+
+    - debug:
+        msg: |
+          mysql --user=db_admin --password=lessl0lcaking -h 165.227.41.224 -e CREATE DATABASE IF NOT EXISTS glance DEFAULT CHARSET=utf8;
+          GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'localhost' \
+          IDENTIFIED BY 'glance_db_pass';
+          GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'%' \
+          IDENTIFIED BY 'glance_db_pass';

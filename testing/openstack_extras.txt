@@ -1,0 +1,11 @@
+export OS_USERNAME=admin
+export OS_PASSWORD=Test1234!
+export OS_PROJECT_NAME=admin
+export OS_USER_DOMAIN_NAME=Default
+export OS_PROJECT_DOMAIN_NAME=Default
+export OS_AUTH_URL=http://localhost:5000/v3
+export OS_IDENTITY_API_VERSION=3
+
+openstack domain create --description "An Example Domain" example --os-username=admin --os-password=Test1234! --os-project-name=admin --os-user-domain-name=Default --os-project-domain-name=Default --os-auth-url=http://165.227.41.224:5000/v3 --os-identity-api-version=3
+
+openstack {} --os-username=admin --os-password=Test1234! --os-project-name=admin --os-user-domain-name=Default --os-project-domain-name=Default --os-auth-url=http://165.227.41.224:5000/v3 --os-identity-api-version=3
